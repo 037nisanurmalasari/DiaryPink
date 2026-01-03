@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room Realtime</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 20px auto; padding: 20px; }
+        
+        /* Area Chat agar bisa scroll */
+        #chatBox { 
+            height: 300px; 
+            overflow-y: scroll; 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .pesan { margin-bottom: 8px; padding: 5px; border-bottom: 1px solid #eee; }
+        .pesan strong { color: #2196F3; }
+        .timestamp { font-size: 0.8em; color: #888; margin-left: 5px; }
+
+        input { padding: 10px; margin-bottom: 5px; width: 100%; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #2196F3; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>💬 Global Chat (Realtime DB)</h2>
+
+    <div id="chatBox">
+        <p style="text-align:center; color:#888;">Memuat percakapan...</p>
+    </div>
+
+    <input type="text" id="username" placeholder="Nama Panggilan Anda">
+    <input type="text" id="message" placeholder="Ketik pesan...">
+    <button id="btnKirim">KIRIM PESAN</button>
+
+    <script type="module">
+        // 1. IMPORT SDK KHUSUS REALTIME DATABASE
+        // Perhatikan kita pakai 'firebase-database.js', BUKAN 'firestore'
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+        // 2. CONFIG (Tambahkan databaseURL!)
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyArvPAMGa0bL8w5qGzSw7Rtxl80wBF7dro",
+  authDomain: "materisbd-a41dd.firebaseapp.com",
+  databaseURL: "https://materisbd-a41dd-default-rtdb.firebaseio.com",
+  projectId: "materisbd-a41dd",
+  storageBucket: "materisbd-a41dd.firebasestorage.app",
+  messagingSenderId: "437589949982",
+  appId: "1:437589949982:web:4be4eb0ae4e52a6910f80f",
+  measurementId: "G-4E6FHRRGQ5"
+};
+
+
+
+        // 3. INISIALISASI
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app); // Mengaktifkan Realtime Database
+
+        // Referensi ke "folder" bernama 'ruang_chat' di database JSON
+        const chatRef = ref(db, 'ruang_chat');
+
+        // --- FITUR KIRIM (CREATE) ---
+        document.getElementById('btnKirim').addEventListener('click', () => {
+            const nama = document.getElementById('username').value;
+            const pesan = document.getElementById('message').value;
+
+            if(!nama || !pesan) { alert("Isi nama dan pesan dulu!"); return; }
+
+            // Gunakan push() untuk membuat data baru dengan ID unik otomatis
+            push(chatRef, {
+                user: nama,
+                text: pesan,
+                waktu: new Date().toLocaleTimeString()
+            });
+
+            document.getElementById('message').value = ""; // Kosongkan input pesan
+        });
+
+        // --- FITUR BACA OTOMATIS (READ) ---
+        // onValue berjalan setiap ada perubahan sekecil apapun di database
+        onValue(chatRef, (snapshot) => {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = ""; // Reset tampilan
+
+            const data = snapshot.val(); // Mengambil data JSON mentah
+
+            if (!data) {
+                chatBox.innerHTML = "<p>Belum ada chat.</p>";
+                return;
+            }
+
+            // Karena datanya berbentuk Object (bukan Array), kita ubah dulu
+            // Object.values(data) mengambil semua isi pesan tanpa peduli ID-nya
+            Object.values(data).forEach((chat) => {
+                const div = document.createElement('div');
+                div.className = "pesan";
+                div.innerHTML = `
+                    <strong>${chat.user}</strong>: ${chat.text} 
+                    <span class="timestamp">${chat.waktu}</span>
+                `;
+                chatBox.appendChild(div);
+            });
+
+            // Scroll otomatis ke bawah agar pesan terbaru terlihat
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+    </script>
+</body>
+</html>

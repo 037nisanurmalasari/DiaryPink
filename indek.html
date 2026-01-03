@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Catatan Firebase Saya</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 30px auto; padding: 20px; }
+        input, button { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        button { background-color: #2196F3; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0b7dda; }
+        .card { background: #f4f4f4; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid #2196F3; }
+        .hapus-btn { background: #ff4444; margin-top: 5px; width: auto; padding: 5px 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <h2>📝 Catatan Harian (Firestore)</h2>
+    
+    <!-- Form Input -->
+    <input type="text" id="inputCatatan" placeholder="Tulis kegiatan hari ini...">
+    <button id="btnSimpan">SIMPAN DATA</button>
+
+    <hr>
+    
+    <!-- Tempat Data Muncul -->
+    <div id="wadahData">
+        <p>Menunggu data dari database...</p>
+    </div>
+
+    <!-- SCRIPT FIREBASE -->
+    <script type="module">
+        // 1. IMPORT SDK (App & Firestore)
+        // Perhatikan: Kita menambah import untuk 'firebase-firestore.js'
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        // 2. KONFIGURASI (Ini Data Milik Anda)
+        const firebaseConfig = {
+    apiKey: "AIzaSyArvPAMGa0bL8w5qGzSw7Rtxl80wBF7dro",
+    authDomain: "materisbd-a41dd.firebaseapp.com",
+    projectId: "materisbd-a41dd",
+    storageBucket: "materisbd-a41dd.firebasestorage.app",
+    messagingSenderId: "437589949982",
+    appId: "1:437589949982:web:4be4eb0ae4e52a6910f80f",
+    measurementId: "G-4E6FHRRGQ5"
+    https://materisbd-a41dd-default-rtdb.firebaseio.com/
+  };
+
+
+        // 3. INISIALISASI
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app); // Mengaktifkan Database Firestore
+
+        // --- LOGIKA APLIKASI ---
+
+        // Referensi elemen HTML
+        const input = document.getElementById('inputCatatan');
+        const btn = document.getElementById('btnSimpan');
+        const wadah = document.getElementById('wadahData');
+
+        // FITUR 1: SIMPAN DATA (Create)
+        btn.addEventListener('click', async () => {
+            const isiCatatan = input.value;
+
+            if (isiCatatan.trim() === "") {
+                alert("Isi catatan dulu dong!");
+                return;
+            }
+
+            try {
+                // Menyimpan ke koleksi bernama 'catatan_harian'
+                await addDoc(collection(db, "catatan_harian"), {
+                    isi: isiCatatan,
+                    waktu: Date.now()
+                });
+                input.value = ""; // Kosongkan input setelah simpan
+                console.log("Berhasil disimpan!");
+            } catch (error) {
+                console.error("Gagal nyimpan:", error);
+                alert("Gagal simpan: " + error.message);
+            }
+        });
+
+        // FITUR 2: BACA DATA REALTIME (Read)
+        // onSnapshot akan jalan terus setiap ada data baru masuk/hapus
+        onSnapshot(collection(db, "catatan_harian"), (snapshot) => {
+            wadah.innerHTML = ""; // Bersihkan tampilan lama
+            
+            if (snapshot.empty) {
+                wadah.innerHTML = "<p>Belum ada catatan.</p>";
+                return;
+            }
+
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const id = docSnap.id;
+
+                // Buat tampilan kartu
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.innerHTML = `
+                    <b>${data.isi}</b>
+                    <br>
+                    <button class="hapus-btn" onclick="hapus('${id}')">Hapus</button>
+                `;
+                wadah.appendChild(div);
+            });
+        });
+
+        // FITUR 3: HAPUS DATA (Delete)
+        // Kita bikin fungsi global agar bisa dipanggil tombol Hapus
+        window.hapus = async (id) => {
+            if(confirm("Yakin mau dihapus?")) {
+                await deleteDoc(doc(db, "catatan_harian", id));
+            }
+        }
+    </script>
+</body>
+</html>

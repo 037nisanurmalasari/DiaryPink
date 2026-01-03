@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Autentikasi Firebase</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
+        .btn-login { background-color: #007bff; color: white; }
+        .btn-login:hover { background-color: #0056b3; }
+        .btn-register { background-color: #28a745; color: white; }
+        .btn-register:hover { background-color: #1e7e34; }
+        .btn-logout { background-color: #dc3545; color: white; }
+        .btn-logout:hover { background-color: #a71d2a; }
+        .hidden { display: none; }
+        #message { margin-top: 15px; text-align: center; font-size: 0.9rem; }
+        .error { color: red; }
+        .success { color: green; }
+        .toggle-link { text-align: center; margin-top: 15px; font-size: 0.9em; cursor: pointer; color: #007bff; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- BAGIAN 1: FORM LOGIN/REGISTER (Muncul jika BELUM login) -->
+        <div id="authForms">
+            <h2 id="formTitle">Login</h2>
+            
+            <input type="email" id="email" placeholder="Email Anda" required>
+            <input type="password" id="password" placeholder="Password (Min. 6 karakter)" required>
+            
+            <button id="btnLogin" class="btn-login">MASUK (LOGIN)</button>
+            <button id="btnRegister" class="btn-register hidden">DAFTAR (REGISTER)</button>
+            
+            <p class="toggle-link" id="toggleText">Belum punya akun? Daftar di sini</p>
+        </div>
+
+        <!-- BAGIAN 2: DASHBOARD USER (Muncul jika SUDAH login) -->
+        <div id="userDashboard" class="hidden">
+            <h2>Selamat Datang! 🎉</h2>
+            <p style="text-align: center;">Anda login sebagai:</p>
+            <p id="userEmailDisplay" style="text-align: center; font-weight: bold; color: #555;"></p>
+            <p style="text-align: center; font-size: 0.8em; color: #888;">User ID: <span id="userIdDisplay"></span></p>
+            
+            <button id="btnLogout" class="btn-logout">LOGOUT (KELUAR)</button>
+        </div>
+
+        <!-- Area Pesan Error/Sukses -->
+        <div id="message"></div>
+
+    </div>
+
+    <!-- SCRIPT FIREBASE -->
+    <script type="module">
+        // 1. IMPORT SDK (App & Auth)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            onAuthStateChanged, 
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+
+        // 2. KONFIGURASI (Sesuai yang Anda berikan)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBNW47-X_Se3u7o-m3II_qA6H-XgsI0xSg",
+            authDomain: "materirealtime.firebaseapp.com",
+            databaseURL: "https://materirealtime-default-rtdb.firebaseio.com",
+            projectId: "materirealtime",
+            storageBucket: "materirealtime.firebasestorage.app",
+            messagingSenderId: "95565708196",
+            appId: "1:95565708196:web:3029220207ef450e0ddf31"
+            https://materisbd-a41dd-default-rtdb.firebaseio.com/
+        };
+
+        // 3. INISIALISASI
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app); // Mengaktifkan fitur Auth
+
+        // Referensi Elemen HTML
+        const emailInput = document.getElementById('email');
+        const passInput = document.getElementById('password');
+        const btnLogin = document.getElementById('btnLogin');
+        const btnRegister = document.getElementById('btnRegister');
+        const btnLogout = document.getElementById('btnLogout');
+        const msgDiv = document.getElementById('message');
+        
+        // Elemen Navigasi UI
+        const authForms = document.getElementById('authForms');
+        const userDashboard = document.getElementById('userDashboard');
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const toggleText = document.getElementById('toggleText');
+        const formTitle = document.getElementById('formTitle');
+
+        // --- LOGIKA UTAMA ---
+
+        // A. PANTAU STATUS LOGIN (Realtime Listener)
+        // Fungsi ini jalan otomatis setiap user login/logout/refresh
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // KONDISI: SUDAH LOGIN
+                authForms.classList.add('hidden');       // Sembunyikan form
+                userDashboard.classList.remove('hidden'); // Tampilkan dashboard
+                userEmailDisplay.textContent = user.email;
+                userIdDisplay.textContent = user.uid;
+                showMessage("", ""); // Hapus pesan lama
+            } else {
+                // KONDISI: BELUM LOGIN (GUEST)
+                authForms.classList.remove('hidden');    // Tampilkan form
+                userDashboard.classList.add('hidden');   // Sembunyikan dashboard
+                userEmailDisplay.textContent = "";
+            }
+        });
+
+        // B. FUNGSI LOGIN
+        btnLogin.addEventListener('click', async () => {
+            const email = emailInput.value;
+            const pass = passInput.value;
+            showMessage("Sedang memproses...", "black");
+
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+                showMessage("Login Berhasil!", "success");
+            } catch (error) {
+                handleError(error);
+            }
+        });
+
+        // C. FUNGSI REGISTER
+        btnRegister.addEventListener('click', async () => {
+            const email = emailInput.value;
+            const pass = passInput.value;
+            
+            if (pass.length < 6) {
+                showMessage("Password minimal 6 karakter!", "error");
+                return;
+            }
+
+            showMessage("Mendaftarkan akun...", "black");
+
+            try {
+                await createUserWithEmailAndPassword(auth, email, pass);
+                showMessage("Akun berhasil dibuat! Anda langsung login.", "success");
+            } catch (error) {
+                handleError(error);
+            }
+        });
+
+        // D. FUNGSI LOGOUT
+        btnLogout.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                showMessage("Anda telah logout.", "success");
+                emailInput.value = ""; // Reset form
+                passInput.value = "";
+            } catch (error) {
+                console.error(error);
+            }
+        });
+
+        // --- HELPERS (Fungsi Pembantu) ---
+
+        // Ganti Tampilan Antara Login & Register
+        toggleText.addEventListener('click', () => {
+            const isLoginMode = !btnLogin.classList.contains('hidden');
+            
+            if (isLoginMode) {
+                // Pindah ke Mode Register
+                btnLogin.classList.add('hidden');
+                btnRegister.classList.remove('hidden');
+                formTitle.textContent = "Daftar Akun Baru";
+                toggleText.textContent = "Sudah punya akun? Login di sini";
+                showMessage("", "");
+            } else {
+                // Pindah ke Mode Login
+                btnLogin.classList.remove('hidden');
+                btnRegister.classList.add('hidden');
+                formTitle.textContent = "Login";
+                toggleText.textContent = "Belum punya akun? Daftar di sini";
+                showMessage("", "");
+            }
+        });
+
+        // Menampilkan Pesan Error yang rapi
+        function handleError(error) {
+            console.error(error.code);
+            let msg = "Terjadi kesalahan.";
+            
+            // Translate error code Firebase ke Bahasa Manusia
+            switch(error.code) {
+                case 'auth/invalid-email': msg = "Alamat email tidak valid."; break;
+                case 'auth/user-not-found': msg = "User tidak ditemukan. Daftar dulu?"; break;
+                case 'auth/wrong-password': msg = "Password salah."; break;
+                case 'auth/email-already-in-use': msg = "Email ini sudah terdaftar."; break;
+                case 'auth/weak-password': msg = "Password terlalu lemah (min 6 karakter)."; break;
+                case 'auth/invalid-credential': msg = "Email atau password salah."; break; // Error baru di versi terbaru
+                default: msg = error.message;
+            }
+            showMessage(msg, "error");
+        }
+
+        function showMessage(text, type) {
+            msgDiv.textContent = text;
+            msgDiv.className = type;
+        }
+
+    </script>
+</body>
+</html>
